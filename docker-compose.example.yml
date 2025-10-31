@@ -1,0 +1,30 @@
+version: '3.8'
+
+services:
+  steam-deck-notifier:
+    image: ghcr.io/oblassgit/refurbished-steam-deck-notifier:latest
+    container_name: steam-deck-notifier
+    restart: unless-stopped
+    environment:
+      # Discord webhook URL (required)
+      - WEBHOOK_URL=https://discord.com/api/webhooks/YOUR_WEBHOOK_HERE
+      # Country code for Steam API (default: DE)
+      - COUNTRY_CODE=US
+      # Optional: Enable role mapping (set to 'true' if roles.json exists)
+      - USE_ROLE_MAPPING=true
+      # Optional: Enable CSV logging (set to 'true' to enable)
+      - ENABLE_CSV_LOGGING=true
+    volumes:
+      # Mount data directory for state files and optional CSV logs
+      - ./data:/app/data
+      # Optional: Mount custom role mapping file
+      - ./roles.json:/app/data/roles.json:ro
+    command: >
+      sh -c "
+      python notifier.py
+      --webhook-url \"$$WEBHOOK_URL\"
+      --country-code \"$$COUNTRY_CODE\"
+      $$([ \"$$USE_ROLE_MAPPING\" = \"true\" ] && echo '--role-mapping /app/data/roles.json' || true)
+      $$([ \"$$ENABLE_CSV_LOGGING\" = \"true\" ] && echo '--csv-dir /app/data/csv-logs' || true)
+      "
+

@@ -158,3 +158,185 @@ If this project helps you, consider supporting via [**Ko-fi**](https://ko-fi.com
 ## 🥇 Special Thanks
 
 Huge thanks to [leo-petrucci](https://github.com/leo-petrucci) for helping improve the codebase and guiding proper Steam API usage!
+
+## 🐳 Docker Compose Usage
+
+This project includes Docker support for easy deployment using Docker Compose. The Docker image is automatically built and published to GitHub Container Registry (GHCR) via GitHub Actions.
+
+### Prerequisites
+
+- Docker and Docker Compose installed
+- A Discord webhook URL
+
+### Quick Start
+
+1. **Clone the repository** (if you haven't already):
+   ```bash
+   git clone https://github.com/oblassgit/refurbished-steam-deck-notifier.git
+   cd refurbished-steam-deck-notifier
+   ```
+
+2. **Create a `.env` file** (optional, or set environment variables):
+   ```bash
+   cat > .env << EOF
+   WEBHOOK_URL=https://discord.com/api/webhooks/YOUR_WEBHOOK_HERE
+   COUNTRY_CODE=US
+   USE_ROLE_MAPPING=false
+   ENABLE_CSV_LOGGING=false
+   EOF
+   ```
+
+3. **Create the data directory** (for state files and logs):
+   ```bash
+   mkdir -p data
+   ```
+
+4. **Optional: Create `roles.json`** (if you want to ping Discord roles):
+   ```bash
+   cat > roles.json << EOF
+   {
+     "903905": "YOUR_ROLE_ID_FOR_64GB_LCD",
+     "903906": "YOUR_ROLE_ID_FOR_256GB_LCD",
+     "903907": "YOUR_ROLE_ID_FOR_512GB_LCD",
+     "1202542": "YOUR_ROLE_ID_FOR_512GB_OLED",
+     "1202547": "YOUR_ROLE_ID_FOR_1TB_OLED"
+   }
+   EOF
+   ```
+   Then set `USE_ROLE_MAPPING=true` in your `.env` file.
+
+5. **Start the container**:
+   ```bash
+   docker-compose up -d
+   ```
+
+6. **View logs**:
+   ```bash
+   docker-compose logs -f
+   ```
+
+### Configuration Options
+
+All configuration is done through environment variables in `docker-compose.yml` or a `.env` file:
+
+| Variable | Description | Required | Default |
+|----------|-------------|----------|---------|
+| `WEBHOOK_URL` | Discord webhook URL for notifications | **Yes** | `https://discord.com/api/webhooks/some_webhook` |
+| `COUNTRY_CODE` | Country code for Steam API | No | `DE` |
+| `USE_ROLE_MAPPING` | Enable Discord role pings (requires `roles.json`) | No | `false` |
+| `ENABLE_CSV_LOGGING` | Enable CSV logging to `data/csv-logs/` | No | `false` |
+
+### Using Environment Variables
+
+You can set environment variables directly in `docker-compose.yml` or use a `.env` file:
+
+**Method 1: Edit `docker-compose.yml` directly**
+```yaml
+environment:
+  - WEBHOOK_URL=https://discord.com/api/webhooks/YOUR_WEBHOOK
+  - COUNTRY_CODE=US
+  - USE_ROLE_MAPPING=true
+  - ENABLE_CSV_LOGGING=true
+```
+
+**Method 2: Use a `.env` file** (recommended)
+```bash
+# .env
+WEBHOOK_URL=https://discord.com/api/webhooks/YOUR_WEBHOOK
+COUNTRY_CODE=US
+USE_ROLE_MAPPING=true
+ENABLE_CSV_LOGGING=true
+```
+
+The `.env` file is automatically loaded by Docker Compose.
+
+### Volumes
+
+The Docker Compose setup mounts the following volumes:
+
+- **`./data:/app/data`** - Contains:
+  - State files (`{package_id}_{country_code}.txt`) - tracks last known availability
+  - CSV logs (if enabled) - daily CSV files in `csv-logs/` subdirectory
+
+- **`./roles.json:/app/data/roles.json:ro`** - Optional role mapping file (read-only)
+
+### Running Periodically
+
+The Docker container runs the notifier script once and exits. To run it periodically, you have several options:
+
+**Option 1: Use Docker restart policy with external scheduler**
+```yaml
+restart: "no"  # Change from "unless-stopped"
+```
+Then use cron or a systemd timer on your host to run:
+```bash
+docker-compose run --rm steam-deck-notifier
+```
+
+**Option 2: Use a container scheduler** (recommended)
+Add a service like `watchtower` or use `docker-compose` with a cron job:
+```bash
+# Add to crontab (runs every 3 minutes)
+*/3 * * * * cd /path/to/refurbished-steam-deck-notifier && docker-compose run --rm steam-deck-notifier
+```
+
+**Option 3: Use docker-compose with restart policy**
+Keep `restart: unless-stopped` and add a cron job to restart the container:
+```bash
+# Runs every 3 minutes
+*/3 * * * * cd /path/to/refurbished-steam-deck-notifier && docker-compose restart steam-deck-notifier
+```
+
+### Pulling Latest Image
+
+To pull the latest Docker image from GHCR:
+```bash
+docker-compose pull
+docker-compose up -d
+```
+
+### Stopping and Removing
+
+```bash
+# Stop the container
+docker-compose stop
+
+# Stop and remove the container
+docker-compose down
+
+# Remove container and volumes (WARNING: deletes state files)
+docker-compose down -v
+```
+
+### Troubleshooting
+
+**Container exits immediately:**
+- Check logs: `docker-compose logs`
+- Verify `WEBHOOK_URL` is set correctly
+- Ensure required directories exist: `mkdir -p data`
+
+**Permission errors:**
+- Ensure the `data` directory is writable: `chmod 755 data`
+
+**Role mapping not working:**
+- Verify `roles.json` exists and is valid JSON
+- Check that `USE_ROLE_MAPPING=true` is set
+- Ensure `roles.json` is mounted correctly (check `docker-compose.yml`)
+
+**CSV logging not working:**
+- Verify `ENABLE_CSV_LOGGING=true` is set
+- Check that `data` directory is writable
+- Check logs for any errors: `docker-compose logs`
+
+### Docker Image Location
+
+The Docker image is available at:
+```
+ghcr.io/oblassgit/refurbished-steam-deck-notifier:latest
+```
+
+You can also use specific tags:
+```
+ghcr.io/oblassgit/refurbished-steam-deck-notifier:main
+ghcr.io/oblassgit/refurbished-steam-deck-notifier:sha-<commit-sha>
+```

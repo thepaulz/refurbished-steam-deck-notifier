@@ -1,0 +1,22 @@
+version: '3.8'
+
+services:
+  steam-deck-notifier:
+    image: ghcr.io/oblassgit/refurbished-steam-deck-notifier:latest
+    container_name: steam-deck-notifier
+    restart: unless-stopped
+    environment:
+      # Discord webhook URL (required - set this!)
+      - WEBHOOK_URL=${WEBHOOK_URL:-https://discord.com/api/webhooks/some_webhook}
+      # Country code for Steam API (default: DE)
+      - COUNTRY_CODE=${COUNTRY_CODE:-DE}
+      # Optional: Enable role mapping (set to 'true' if roles.json exists)
+      - USE_ROLE_MAPPING=${USE_ROLE_MAPPING:-false}
+      # Optional: Enable CSV logging (set to 'true' to enable)
+      - ENABLE_CSV_LOGGING=${ENABLE_CSV_LOGGING:-false}
+    volumes:
+      # Mount data directory for state files and optional CSV logs
+      - ./data:/app/data
+      # Optional: Mount custom role mapping file (create roles.json in same directory as docker-compose.yml)
+      - ./roles.json:/app/data/roles.json:ro
+    # No command needed - entrypoint script handles everything
