@@ -14,6 +14,8 @@ services:
       - USE_ROLE_MAPPING=${USE_ROLE_MAPPING:-false}
       # Optional: Enable CSV logging (set to 'true' to enable)
       - ENABLE_CSV_LOGGING=${ENABLE_CSV_LOGGING:-false}
+      # Optional: Comma-separated list of package IDs to track (e.g., "1202542,1202547"). If not specified, all models are tracked.
+      - PACKAGE_IDS=${PACKAGE_IDS:-}
     volumes:
       # Mount data directory for state files and optional CSV logs
       - ./data:/app/data
