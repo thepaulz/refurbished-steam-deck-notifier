@@ -74,44 +74,6 @@ jobs:
         name: release-assets-${{ matrix.os }}
         path: dist/${{ matrix.asset_name }}${{ matrix.executable_extension }}
 
-  release:
-    if: github.event.inputs.create_release == 'true'
-    needs: build
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v4
-    
-    - name: Download all release assets
-      uses: actions/download-artifact@v4
-      with:
-        pattern: release-assets-*
-        path: ./release-assets/
-        merge-multiple: true
-        
-    - name: Create Release
-      id: create_release
-      uses: softprops/action-gh-release@v2
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        tag_name: ${{ github.event.inputs.release_tag || format('v{0}', github.run_number) }}
-        name: Release ${{ github.event.inputs.release_tag || format('v{0}', github.run_number) }}
-        draft: false
-        prerelease: false
-        body: |
-          Steam Deck Notifier Release
-          
-          ## Downloads
-          - **Linux**: steam-deck-notifier-linux
-          - **Windows**: steam-deck-notifier-windows.exe  
-          - **macOS**: steam-deck-notifier-macos
-          
-          Built from commit: ${{ github.sha }}
-        files: |
-          ./release-assets/steam-deck-notifier-linux
-          ./release-assets/steam-deck-notifier-windows.exe
-          ./release-assets/steam-deck-notifier-macos
-
   docker-build:
     runs-on: ubuntu-latest
     permissions:
@@ -152,3 +114,99 @@ jobs:
         labels: ${{ steps.meta.outputs.labels }}
         cache-from: type=gha
         cache-to: type=gha,mode=max
+    
+    - name: Output container information to workflow summary
+      run: |
+        echo "## 🐳 Container Information" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Image Registry" >> $GITHUB_STEP_SUMMARY
+        echo '```' >> $GITHUB_STEP_SUMMARY
+        echo "ghcr.io/${{ github.repository }}" >> $GITHUB_STEP_SUMMARY
+        echo '```' >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Tags" >> $GITHUB_STEP_SUMMARY
+        echo '```' >> $GITHUB_STEP_SUMMARY
+        echo "${{ steps.meta.outputs.tags }}" >> $GITHUB_STEP_SUMMARY
+        echo '```' >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Pull Command" >> $GITHUB_STEP_SUMMARY
+        echo '```bash' >> $GITHUB_STEP_SUMMARY
+        echo "docker pull ghcr.io/${{ github.repository }}:latest" >> $GITHUB_STEP_SUMMARY
+        echo '```' >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Container Registry Link" >> $GITHUB_STEP_SUMMARY
+        REPO_NAME=$(echo "${{ github.repository }}" | cut -d'/' -f2)
+        echo "[View on GitHub Container Registry](https://github.com/${{ github.repository }}/pkgs/container/$REPO_NAME)" >> $GITHUB_STEP_SUMMARY
+
+  release:
+    if: github.event.inputs.create_release == 'true'
+    needs: [build, docker-build]
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Download all release assets
+      uses: actions/download-artifact@v4
+      with:
+        pattern: release-assets-*
+        path: ./release-assets/
+        merge-multiple: true
+    
+    - name: Extract metadata (tags, labels) for Docker
+      id: meta
+      uses: docker/metadata-action@v5
+      with:
+        images: ghcr.io/${{ github.repository }}
+        tags: |
+          type=ref,event=branch
+          type=ref,event=pr
+          type=semver,pattern={{version}}
+          type=semver,pattern={{major}}.{{minor}}
+          type=sha,prefix={{branch}}-
+          type=raw,value=latest,enable={{is_default_branch}}
+    
+    - name: Extract repository name for container registry link
+      id: repo_info
+      run: |
+        REPO_NAME=$(echo "${{ github.repository }}" | cut -d'/' -f2)
+        echo "repo_name=$REPO_NAME" >> $GITHUB_OUTPUT
+        
+    - name: Create Release
+      id: create_release
+      uses: softprops/action-gh-release@v2
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ github.event.inputs.release_tag || format('v{0}', github.run_number) }}
+        name: Release ${{ github.event.inputs.release_tag || format('v{0}', github.run_number) }}
+        draft: false
+        prerelease: false
+        body: |
+          Steam Deck Notifier Release
+          
+          ## Downloads
+          - **Linux**: steam-deck-notifier-linux
+          - **Windows**: steam-deck-notifier-windows.exe  
+          - **macOS**: steam-deck-notifier-macos
+          
+          ## 🐳 Docker Container
+          
+          **Image**: `ghcr.io/${{ github.repository }}`
+          
+          **Tags**:
+          ```
+          ${{ steps.meta.outputs.tags }}
+          ```
+          
+          **Pull Command**:
+          ```bash
+          docker pull ghcr.io/${{ github.repository }}:${{ github.event.inputs.release_tag || format('v{0}', github.run_number) }}
+          ```
+          
+          **Container Registry**: [View on GitHub Container Registry](https://github.com/${{ github.repository }}/pkgs/container/${{ steps.repo_info.outputs.repo_name }})
+          
+          Built from commit: ${{ github.sha }}
+        files: |
+          ./release-assets/steam-deck-notifier-linux
+          ./release-assets/steam-deck-notifier-windows.exe
+          ./release-assets/steam-deck-notifier-macos
