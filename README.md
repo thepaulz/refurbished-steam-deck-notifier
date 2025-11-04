@@ -64,6 +64,7 @@ python steam_deck_checker.py --webhook-url "https://discord.com/api/webhooks/YOU
 * `--country-code`: Country code for Steam API (default: `DE`, **important**)
 * `--role-mapping`: JSON file containing Discord role mappings (optional)
 * `--csv-dir`: Directory path for daily CSV log files (optional)
+* `--package-ids`: Comma-separated list of package IDs to track (optional). If not specified, all models are tracked. Example: `"1202542,1202547"` to track only 512GB OLED and 1TB OLED.
 
 ### Full Example
 
@@ -74,6 +75,24 @@ python steam_deck_checker.py \
   --role-mapping roles.json \
   --csv-dir csv-logs
 ```
+
+### Tracking Specific Models Only
+
+To track only specific Steam Deck models, use the `--package-ids` argument:
+
+```bash
+# Track only 512GB OLED and 1TB OLED
+python steam_deck_checker.py \
+  --webhook-url "https://discord.com/api/webhooks/YOUR_WEBHOOK" \
+  --package-ids "1202542,1202547"
+```
+
+Available package IDs:
+* `903905` - 64GB LCD
+* `903906` - 256GB LCD
+* `903907` - 512GB LCD
+* `1202542` - 512GB OLED
+* `1202547` - 1TB OLED
 
 ### Discord Role Mapping (Optional)
 
@@ -97,13 +116,15 @@ Find valid country codes [here](https://github.com/RudeySH/SteamCountries/blob/m
 
 ## 💪 Steam Deck Models Monitored
 
-The script checks availability for these models:
+By default, the script checks availability for all these models:
 
 * **64GB LCD** (Package ID: 903905)
 * **256GB LCD** (Package ID: 903906)
 * **512GB LCD** (Package ID: 903907)
 * **512GB OLED** (Package ID: 1202542)
 * **1TB OLED** (Package ID: 1202547)
+
+You can configure which models to track using the `--package-ids` command-line argument or the `PACKAGE_IDS` environment variable (see [Tracking Specific Models Only](#tracking-specific-models-only) section above).
 
 ## 🔧 How It Works
 
@@ -225,6 +246,7 @@ All configuration is done through environment variables in `docker-compose.yml` 
 | `COUNTRY_CODE` | Country code for Steam API | No | `DE` |
 | `USE_ROLE_MAPPING` | Enable Discord role pings (requires `roles.json`) | No | `false` |
 | `ENABLE_CSV_LOGGING` | Enable CSV logging to `data/csv-logs/` | No | `false` |
+| `PACKAGE_IDS` | Comma-separated list of package IDs to track (e.g., `"1202542,1202547"`). If not specified, all models are tracked. | No | (all models) |
 
 ### Using Environment Variables
 
@@ -246,6 +268,7 @@ WEBHOOK_URL=https://discord.com/api/webhooks/YOUR_WEBHOOK
 COUNTRY_CODE=US
 USE_ROLE_MAPPING=true
 ENABLE_CSV_LOGGING=true
+PACKAGE_IDS=1202542,1202547  # Track only 512GB OLED and 1TB OLED
 ```
 
 The `.env` file is automatically loaded by Docker Compose.

@@ -28,6 +28,15 @@ import json
 DEFAULT_COUNTRY_CODE = 'DE'
 DEFAULT_WEBHOOK_URL = "https://discord.com/api/webhooks/some_webhook"
 
+# Available Steam Deck models
+AVAILABLE_MODELS = {
+    "903905": ("64", False),    # 64gb lcd
+    "903906": ("256", False),   # 256gb lcd  
+    "903907": ("512", False),   # 512gb lcd
+    "1202542": ("512", True),   # 512gb oled
+    "1202547": ("1024", True),  # 1tb oled
+}
+
 def get_daily_csv_path(csv_dir: str, country_code: str) -> str:
     """Generate the CSV file path for today's date and country"""
     if not csv_dir:
@@ -144,6 +153,8 @@ def main():
                        help='Discord webhook URL for notifications')
     parser.add_argument('--role-mapping', help='JSON file containing package_id to role_id mapping')
     parser.add_argument('--csv-log', help='Deprecated: This option is no longer supported (last supported version v2.0.0).')
+    parser.add_argument('--package-ids', 
+                       help='Comma-separated list of package IDs to track (e.g., "1202542,1202547"). If not specified, all models are tracked.')
     
     args = parser.parse_args()
 
@@ -165,19 +176,44 @@ def main():
     print(f"Country code: {args.country_code}")
     print(f"Webhook URL: {args.webhook_url}")
     
-    # Steam Deck models
-    models = [
-        ("64", "903905", False),    # 64gb lcd
-        ("256", "903906", False),   # 256gb lcd  
-        ("512", "903907", False),   # 512gb lcd
-        ("512", "1202542", True),   # 512gb oled
-        ("1024", "1202547", True),  # 1tb oled
-    ]   
+    # Determine which models to track
+    if args.package_ids:
+        # Parse comma-separated package IDs
+        requested_ids = [pid.strip() for pid in args.package_ids.split(',')]
+        models = []
+        invalid_ids = []
+        
+        for package_id in requested_ids:
+            if package_id in AVAILABLE_MODELS:
+                version, is_oled = AVAILABLE_MODELS[package_id]
+                models.append((version, package_id, is_oled))
+            else:
+                invalid_ids.append(package_id)
+        
+        if invalid_ids:
+            print(f"Warning: Invalid package IDs ignored: {', '.join(invalid_ids)}")
+            print(f"Available package IDs: {', '.join(AVAILABLE_MODELS.keys())}")
+        
+        if not models:
+            print("Error: No valid package IDs specified. Exiting.")
+            return
+        
+        print(f"Tracking {len(models)} model(s): {', '.join([pid for _, pid, _ in models])}")
+    else:
+        # Default: track all models
+        models = [
+            (version, package_id, is_oled)
+            for package_id, (version, is_oled) in AVAILABLE_MODELS.items()
+        ]
+        print(f"Tracking all {len(models)} models (default)")
 
     if role_ids:
         print(f"Role mapping loaded: {len(role_ids)} entries")
-        if not len(role_ids) == len(models):
-            print("Warning..............Role mapping doesn't match models. Pinging roles won't work as expected.")
+        tracked_package_ids = {pid for _, pid, _ in models}
+        role_package_ids = set(role_ids.keys())
+        if not tracked_package_ids.issubset(role_package_ids):
+            missing_roles = tracked_package_ids - role_package_ids
+            print(f"Warning: Role mapping missing for package IDs: {', '.join(missing_roles)}. Pinging roles won't work for these models.")
     else:
         print("No role mapping - notifications will not ping roles")
     

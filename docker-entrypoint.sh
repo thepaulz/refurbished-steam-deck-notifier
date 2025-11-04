@@ -14,6 +14,11 @@ if [ "${ENABLE_CSV_LOGGING}" = "true" ]; then
     set -- "$@" --csv-dir /app/data/csv-logs
 fi
 
+# Add package IDs if specified
+if [ -n "${PACKAGE_IDS}" ]; then
+    set -- "$@" --package-ids "${PACKAGE_IDS}"
+fi
+
 # Execute the notifier with built arguments
 exec "$@"
 
