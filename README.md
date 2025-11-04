@@ -9,6 +9,13 @@
 
 This script checks the availability of refurbished Steam Decks on Steam and sends notifications to a specified Discord webhook. It queries Steam's API and compares the current stock status with previously stored values.
 
+## 🔀 Fork-Specific Changes
+
+This fork includes the following enhancements not present in the upstream repository:
+
+* **Docker/Containerized Workflow**: Full Docker support with Docker Compose for easy deployment. Includes automated image builds published to GitHub Container Registry (GHCR), and environment variable configuration.
+* **Configurable Package ID Tracking**: Track only specific Steam Deck models using the `--package-ids` command-line argument or `PACKAGE_IDS` environment variable. This allows you to monitor only the models you're interested in (e.g., only OLED models) instead of all available models.
+
 ## 🚀 Features
 
 * Checks the availability of refurbished Steam Decks for a configurable country
